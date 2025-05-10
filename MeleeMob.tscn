@@ -1,0 +1,265 @@
+[gd_scene load_steps=13 format=2]
+
+[ext_resource path="res://asset/mob_melee_right.png" type="Texture" id=1]
+[ext_resource path="res://asset/mob_melee_right_detect.png" type="Texture" id=2]
+[ext_resource path="res://asset/mob_melee_left_detect.png" type="Texture" id=3]
+[ext_resource path="res://asset/hp_bar_under.png" type="Texture" id=4]
+[ext_resource path="res://asset/hp_bar_progress_mob.png" type="Texture" id=5]
+[ext_resource path="res://asset/mob_melee_left.png" type="Texture" id=6]
+
+[sub_resource type="GDScript" id=1]
+script/source = "extends KinematicBody2D
+
+var MobSwordAttack = preload(\"res://MobSwordAttack.tscn\")
+var item = preload(\"res://DroppedItem.tscn\")
+var screen_size
+
+
+# 이동 관련 변수
+var velocity = Vector2()
+var speed = 150
+var jump_speed = -600
+var gravity_acc = 1200
+
+# 체력 관련 변수
+var hp = 100
+var state_attack_active = true
+
+# 탐지 상태/이동패턴/공격받음
+var state_detect = false
+var state_attacked = false
+var pattern_speed = [100,75,-100,-75]
+var pattern_current_speed
+var knockbacked = false
+
+func _ready():
+	screen_size = get_viewport_rect().size
+
+func start(pos,rot):
+	position = pos
+	rotation = rot
+
+func knockback(v):
+	knockbacked = true
+	velocity = v * 2.5 + velocity * 0.5
+	$knockback_timer.start()
+	
+func _physics_process(delta):
+	# 이동 관련
+	if not knockbacked:
+		if state_detect or state_attacked:
+			if not $\"../Character\".dead:
+				$pattern_change_timer.stop()
+				$jump_timer.wait_time = 1.5
+				if $close_move_timer.is_stopped():
+					if $\"../Character\".position.x > position.x: velocity.x = speed
+					elif $\"../Character\".position.x < position.x: velocity.x = -speed
+					
+					if ($\"../Character\".position.x - position.x < 16) and ($\"../Character\".position.x - position.x > -16):
+						$close_move_timer.start()
+				else:
+					velocity.x = 0
+		else:
+			if $pattern_change_timer.is_stopped():
+				pattern_current_speed = pattern_speed[randi() % len(pattern_speed)]
+				$pattern_change_timer.start()
+				$jump_timer.wait_time = 3
+			velocity.x = pattern_current_speed
+	
+	velocity.y += gravity_acc * delta
+	velocity = move_and_slide(velocity, Vector2(0,-1))
+	
+	# 체력 관련
+	$HPbar.value = hp
+	if hp <= 0:
+		if $\"../Character\".sp <= 90:
+			$\"../Character\".sp_vary(10)
+		else:
+			$\"../Character\".sp = 100
+		get_parent().score += 1
+		var i = item.instance()
+		i.start(position,randi() % 3,0,1)
+		get_parent().add_child(i)
+		queue_free()
+	# 애니메이션
+	if state_detect or state_attacked:
+		if $\"../Character\".position.x - position.x >= 0:
+			$AnimatedSprite.animation = \"right_detect\"
+		elif $\"../Character\".position.x - position.x < 0:
+			$AnimatedSprite.animation = \"left_detect\"
+	else:
+		if velocity.x >= 0:
+			$AnimatedSprite.animation = \"right\"
+		elif velocity.x < 0:
+			$AnimatedSprite.animation = \"left\"
+	# 공격 활성화(외부 설정)
+	state_attack_active = get_parent().mobs_attack_active
+
+# 총알 피격 판정
+func _on_Area2D_body_entered(body):
+	if body.is_in_group(\"character_attacks\"):
+		hp -= body.damage
+		if body.is_in_group(\"bullets\"):
+			body.free()
+		elif body.is_in_group(\"arrows\"):
+			body.pierce_amount += 1
+			
+# 장애물 있을시 점프
+func _on_obstacle_checkbox_body_entered(body):
+	if body.get_collision_layer() == 1:
+		if is_on_floor():
+			velocity.y = jump_speed
+
+# 일정 시간마다 자동 점프
+func _on_jump_timer_timeout():
+	if is_on_floor():
+			velocity.y = jump_speed + 200
+
+# 일정 시간마다 공격
+func _on_attack_timer_timeout():
+	if (not $\"../Character\".dead) and state_attack_active and (state_detect or state_attacked) and (($\"../Character\".position - position).length() < 250):
+		var a = MobSwordAttack.instance()
+		var dir = ($\"../Character\".position - global_position).angle()
+		a.damage = 2
+		a.add_to_group(\"enemy_attacks\")
+		a.start(position,dir,get_instance_id())
+		get_parent().add_child(a)
+
+# 캐릭터 탐지
+func _on_detect_checkbox_body_entered(body):
+	if body.is_in_group(\"character\"):
+		state_detect = true
+
+func _on_detect_checkbox_body_exited(body):
+	if body.is_in_group(\"character\"):
+		state_detect = false
+
+# 미탐지 상태에서 일정 시간마다 이동속도 변화
+func _on_pattern_change_timer_timeout():
+	pattern_current_speed = pattern_speed[randi() % len(pattern_speed)]
+
+
+func _on_attacked_checkbox_body_entered(body):
+	if body.is_in_group(\"character_attacks\"):
+		state_attacked = true
+		get_parent().disable_mob_attacked(get_instance_id())
+
+
+func _on_knockback_timer_timeout():
+	knockbacked = false
+"
+
+[sub_resource type="RectangleShape2D" id=2]
+extents = Vector2( 31.7527, 31.5726 )
+
+[sub_resource type="RectangleShape2D" id=3]
+extents = Vector2( 33.8457, 69.6275 )
+
+[sub_resource type="CapsuleShape2D" id=4]
+radius = 541.573
+height = 480.639
+
+[sub_resource type="CircleShape2D" id=5]
+radius = 350.357
+
+[sub_resource type="SpriteFrames" id=6]
+animations = [ {
+"frames": [ ExtResource( 6 ) ],
+"loop": true,
+"name": "left",
+"speed": 5.0
+}, {
+"frames": [ ExtResource( 1 ) ],
+"loop": true,
+"name": "right",
+"speed": 5.0
+}, {
+"frames": [ ExtResource( 2 ) ],
+"loop": true,
+"name": "right_detect",
+"speed": 5.0
+}, {
+"frames": [ ExtResource( 3 ) ],
+"loop": true,
+"name": "left_detect",
+"speed": 5.0
+} ]
+
+[node name="MeleeMob" type="KinematicBody2D" groups=["mobs"]]
+scale = Vector2( 0.5, 0.5 )
+collision_layer = 8
+collision_mask = 9
+script = SubResource( 1 )
+
+[node name="hitbox" type="Area2D" parent="."]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="hitbox"]
+shape = SubResource( 2 )
+
+[node name="obstacle_checkbox" type="Area2D" parent="."]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="obstacle_checkbox"]
+position = Vector2( 67.1752, -41.7193 )
+shape = SubResource( 3 )
+
+[node name="CollisionShape2D2" type="CollisionShape2D" parent="obstacle_checkbox"]
+position = Vector2( -65.4074, -42.78 )
+shape = SubResource( 3 )
+
+[node name="detect_checkbox" type="Area2D" parent="."]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="detect_checkbox"]
+rotation = 1.5708
+shape = SubResource( 4 )
+
+[node name="attacked_checkbox" type="Area2D" parent="."]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="attacked_checkbox"]
+shape = SubResource( 5 )
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource( 2 )
+
+[node name="AnimatedSprite" type="AnimatedSprite" parent="."]
+frames = SubResource( 6 )
+animation = "left"
+
+[node name="HPbar" type="TextureProgress" parent="."]
+margin_left = -38.0429
+margin_top = -50.75
+margin_right = 25.9571
+margin_bottom = -34.75
+rect_scale = Vector2( 1.2, 0.8 )
+value = 100.0
+texture_under = ExtResource( 4 )
+texture_progress = ExtResource( 5 )
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="jump_timer" type="Timer" parent="."]
+wait_time = 1.5
+autostart = true
+
+[node name="attack_timer" type="Timer" parent="."]
+autostart = true
+
+[node name="pattern_change_timer" type="Timer" parent="."]
+wait_time = 1.5
+
+[node name="close_move_timer" type="Timer" parent="."]
+wait_time = 0.2
+one_shot = true
+
+[node name="knockback_timer" type="Timer" parent="."]
+wait_time = 0.3
+
+[connection signal="body_entered" from="hitbox" to="." method="_on_Area2D_body_entered"]
+[connection signal="body_entered" from="obstacle_checkbox" to="." method="_on_obstacle_checkbox_body_entered"]
+[connection signal="body_entered" from="detect_checkbox" to="." method="_on_detect_checkbox_body_entered"]
+[connection signal="body_exited" from="detect_checkbox" to="." method="_on_detect_checkbox_body_exited"]
+[connection signal="body_entered" from="attacked_checkbox" to="." method="_on_attacked_checkbox_body_entered"]
+[connection signal="timeout" from="jump_timer" to="." method="_on_jump_timer_timeout"]
+[connection signal="timeout" from="attack_timer" to="." method="_on_attack_timer_timeout"]
+[connection signal="timeout" from="pattern_change_timer" to="." method="_on_pattern_change_timer_timeout"]
+[connection signal="timeout" from="knockback_timer" to="." method="_on_knockback_timer_timeout"]

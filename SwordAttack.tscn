@@ -1,0 +1,42 @@
+[gd_scene load_steps=5 format=2]
+
+[ext_resource path="res://SwordAttack.gd" type="Script" id=1]
+[ext_resource path="res://asset/sword_attack.png" type="Texture" id=2]
+[ext_resource path="res://asset/sword_attack_charge.png" type="Texture" id=3]
+
+[sub_resource type="SpriteFrames" id=1]
+animations = [ {
+"frames": [ ExtResource( 2 ) ],
+"loop": true,
+"name": "normal",
+"speed": 5.0
+}, {
+"frames": [ ExtResource( 3 ) ],
+"loop": true,
+"name": "charge",
+"speed": 60.0
+} ]
+
+[node name="SwordAttack" type="KinematicBody2D"]
+collision_layer = 0
+collision_mask = 0
+script = ExtResource( 1 )
+
+[node name="AnimatedSprite" type="AnimatedSprite" parent="."]
+frames = SubResource( 1 )
+animation = "normal"
+
+[node name="CollisionPolygon2D" type="CollisionPolygon2D" parent="."]
+polygon = PoolVector2Array( -15.5, -30.75, -5.875, -20.5, 0.875, -6, 1.25, 8, -4.875, 20.125, -15.625, 31.875, -9, 31.75, 2.125, 25.375, 12.125, 12.25, 15.875, 1.875, 14.75, -10.25, 7, -20, -1.125, -27.25, -11, -31.75 )
+
+[node name="Area2D" type="Area2D" parent="."]
+
+[node name="CollisionPolygon2D" type="CollisionPolygon2D" parent="Area2D"]
+polygon = PoolVector2Array( -15.6676, -31.055, -5.68191, -20.2284, 1.15037, -5.09227, 1.46571, 7.94162, -5.5768, 22.0266, -15.4573, 31.2765, -9.0455, 31.3816, 1.99127, 25.3902, 11.8718, 12.5666, 15.7609, 1.6349, 14.4996, -9.82232, 7.14176, -19.4926, -1.37232, -27.2709, -10.7273, -31.2652 )
+
+[node name="delete_timer" type="Timer" parent="."]
+wait_time = 0.2
+autostart = true
+
+[connection signal="body_entered" from="Area2D" to="." method="_on_Area2D_body_entered"]
+[connection signal="timeout" from="delete_timer" to="." method="_on_delete_timer_timeout"]

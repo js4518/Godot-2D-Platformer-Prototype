@@ -1,0 +1,50 @@
+[gd_scene load_steps=8 format=2]
+
+[ext_resource path="res://asset/bullet_2.png" type="Texture" id=1]
+[ext_resource path="res://Bullet.gd" type="Script" id=2]
+[ext_resource path="res://asset/bullet_3.png" type="Texture" id=4]
+[ext_resource path="res://asset/bullet_4.png" type="Texture" id=5]
+
+[sub_resource type="SpriteFrames" id=1]
+animations = [ {
+"frames": [ ExtResource( 1 ) ],
+"loop": true,
+"name": "bullet_2",
+"speed": 5.0
+}, {
+"frames": [ ExtResource( 4 ) ],
+"loop": true,
+"name": "bullet_1",
+"speed": 5.0
+} ]
+
+[sub_resource type="SpriteFrames" id=2]
+animations = [ {
+"frames": [ ExtResource( 5 ) ],
+"loop": true,
+"name": "bullet_1",
+"speed": 5.0
+} ]
+
+[sub_resource type="RectangleShape2D" id=3]
+extents = Vector2( 2.01278, 1.93298 )
+
+[node name="Bullet" type="KinematicBody2D" groups=[
+"bullets",
+]]
+scale = Vector2( 1.5, 1.5 )
+collision_layer = 4
+script = ExtResource( 2 )
+
+[node name="character_bullet_sprite" type="AnimatedSprite" parent="."]
+scale = Vector2( 0.25, 0.25 )
+frames = SubResource( 1 )
+animation = "bullet_2"
+
+[node name="enemy_bullet_sprite" type="AnimatedSprite" parent="."]
+scale = Vector2( 0.25, 0.25 )
+frames = SubResource( 2 )
+animation = "bullet_1"
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource( 3 )
